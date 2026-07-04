@@ -4,7 +4,7 @@
 model:    yolov8l.pt   # modelo MAIOR — H100 aguenta com folga
 epochs:   150
 patience: 25
-batch:    32           # 1660 Super usava 8 — H100 aguenta 64 tranquilo
+batch:    48           # 1660 Super usava 8 — H100 aguenta 64 tranquilo
 imgsz:    640
 workers:  8            # mais workers = carregamento de dados mais rápido
 
@@ -55,4 +55,4 @@ max_det:        20
 # Google Drive — ID do ZIP do dataset para download automático
 # Obtenha em: Drive → botão direito no ZIP → Compartilhar → Copiar link
 # O ID está entre /d/ e /view na URL
-drive_zip_id: ""   # ex: "1A2B3C4D5E6F7G8H9I0J"
+drive_zip_id: "1KMVd-JrSt1S4YSwupl0X8flOzFtveYio"   # ex: "1A2B3C4D5E6F7G8H9I0J"

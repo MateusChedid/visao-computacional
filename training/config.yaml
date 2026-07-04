@@ -55,4 +55,4 @@ max_det: 20
 # Google Drive — ID do ZIP do dataset para download automático
 # Obtenha em: Drive → botão direito no ZIP → Compartilhar → Copiar link
 # O ID está entre /d/ e /view na URL
-drive_zip_id: "1Zb3Wmu4uTaL-_4BA41JewOvsW7oBkZox" # ex: "1A2B3C4D5E6F7G8H9I0J"
+drive_zip_id: "1hgyz9bbEGlGi0UZ2i8aAETs4rSkpJSA1" # ex: "1A2B3C4D5E6F7G8H9I0J"

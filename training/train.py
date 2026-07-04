@@ -88,11 +88,69 @@ def download_dataset_from_drive(drive_zip_id: str):
     print(f"\n[INFO] Descompactando {zip_path.name} "
           f"({zip_path.stat().st_size / 1e6:.1f} MB)...")
 
+    dataset_dir = PROJECT_ROOT / "dataset"
+
     with zipfile.ZipFile(zip_path, 'r') as z:
-        z.extractall(PROJECT_ROOT / "dataset")
+        names = z.namelist()
+        names_norm = [n.replace("\\", "/") for n in names]
+
+        # Determinar pasta de destino base
+        if any(n.startswith("dataset/") for n in names_norm):
+            base = PROJECT_ROOT
+        elif any(n.startswith("images/") for n in names_norm):
+            base = dataset_dir
+        elif any(n.startswith("train/") for n in names_norm):
+            base = dataset_dir / "images"
+        else:
+            base = dataset_dir
+
+        # Extrair manualmente respeitando separadores Windows (\)
+        for entry, name_norm in zip(z.infolist(), names_norm):
+            if name_norm.endswith("/"):
+                # É um diretório
+                (base / name_norm).mkdir(parents=True, exist_ok=True)
+                continue
+            dest = base / name_norm
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(z.read(entry.filename))
 
     # Remover ZIP após extração para economizar espaço
     zip_path.unlink()
+    print("[✓] Dataset extraído com sucesso.\n")
+
+    # Remover ZIP após extração para economizar espaço
+    zip_path.unlink()
+
+    # Verificar onde as imagens foram parar
+    expected = dataset_dir / "images" / "train"
+    if not any(expected.glob("*.jpg")):
+        # Procurar onde as imagens foram parar de verdade
+        found = list(dataset_dir.rglob("*.jpg"))
+        if found:
+            actual = found[0].parent
+            print(f"[AVISO] Imagens foram para: {actual}")
+            print(f"        Esperado:           {expected}")
+            print(f"        Movendo para o lugar certo...")
+            import shutil
+            # Tentar mover a estrutura para o lugar certo
+            # Procurar a pasta 'images' em qualquer lugar dentro de dataset_dir
+            for candidate in dataset_dir.rglob("images"):
+                if candidate.is_dir() and (candidate / "train").exists():
+                    if candidate != dataset_dir / "images":
+                        shutil.move(str(candidate), str(dataset_dir / "images_tmp"))
+                        if (dataset_dir / "images").exists():
+                            shutil.rmtree(str(dataset_dir / "images"))
+                        (dataset_dir / "images_tmp").rename(dataset_dir / "images")
+                    break
+            for candidate in dataset_dir.rglob("labels"):
+                if candidate.is_dir() and (candidate / "train").exists():
+                    if candidate != dataset_dir / "labels":
+                        shutil.move(str(candidate), str(dataset_dir / "labels_tmp"))
+                        if (dataset_dir / "labels").exists():
+                            shutil.rmtree(str(dataset_dir / "labels"))
+                        (dataset_dir / "labels_tmp").rename(dataset_dir / "labels")
+                    break
+
     print("[✓] Dataset extraído com sucesso.\n")
 
 

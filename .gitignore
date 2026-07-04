@@ -6,12 +6,10 @@ venv/
 
 dataset_collector/_work/
 dataset_collector/input/
-runs/
 screenshots/
 
 
 # Ignora todos os pesos
-*.pt
 
 *.zip
 

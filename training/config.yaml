@@ -51,3 +51,8 @@ val:         true
 conf_threshold: 0.45
 iou_threshold:  0.45
 max_det:        20
+
+# Google Drive — ID do ZIP do dataset para download automático
+# Obtenha em: Drive → botão direito no ZIP → Compartilhar → Copiar link
+# O ID está entre /d/ e /view na URL
+drive_zip_id: ""   # ex: "1A2B3C4D5E6F7G8H9I0J"

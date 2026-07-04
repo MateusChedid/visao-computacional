@@ -6,11 +6,22 @@ Uso:
     python training/train.py
     python training/train.py --resume
     python training/train.py --model yolov8s --epochs 100
+
+Se o dataset não estiver presente localmente, o script tenta baixar
+automaticamente de um ZIP no Google Drive (configurável em training/config.yaml):
+
+    drive_zip_id: "ID_DO_ARQUIVO_NO_DRIVE"   ← ID da URL de compartilhamento
+
+Para obter o ID: no Drive, clique com botão direito no ZIP → Compartilhar →
+Copiar link. O ID é a parte entre /d/ e /view na URL:
+  https://drive.google.com/file/d/ESTE_E_O_ID/view
 """
 
 import argparse
 import sys
 import yaml
+import zipfile
+import urllib.request
 from pathlib import Path
 from datetime import datetime
 
@@ -30,6 +41,59 @@ RUNS_DIR     = PROJECT_ROOT / "runs"
 def load_config():
     with open(CONFIG_YAML) as f:
         return yaml.safe_load(f)
+
+
+def dataset_is_ready():
+    images_train = PROJECT_ROOT / "dataset" / "images" / "train"
+    images_val   = PROJECT_ROOT / "dataset" / "images" / "val"
+    n_train = len(list(images_train.glob("*.jpg")) + list(images_train.glob("*.png")))
+    n_val   = len(list(images_val.glob("*.jpg"))   + list(images_val.glob("*.png")))
+    return n_train > 50 and n_val > 10
+
+
+def download_dataset_from_drive(drive_zip_id: str):
+    """
+    Baixa o ZIP do dataset do Google Drive usando o ID de compartilhamento
+    e descompacta em PROJECT_ROOT/dataset/.
+    """
+    zip_path = PROJECT_ROOT / "rpg_dice_dataset.zip"
+
+    # URL de download direto do Google Drive
+    url = f"https://drive.google.com/uc?export=download&id={drive_zip_id}&confirm=t"
+
+    print(f"[INFO] Baixando dataset do Google Drive...")
+    print(f"       ID: {drive_zip_id}")
+    print(f"       Destino: {zip_path}")
+    print(f"       (pode demorar alguns minutos dependendo do tamanho)\n")
+
+    try:
+        # Tentar com gdown se disponível (melhor para arquivos grandes)
+        import gdown
+        gdown.download(id=drive_zip_id, output=str(zip_path), quiet=False)
+    except ImportError:
+        print("[INFO] gdown não encontrado, usando urllib (pode falhar para arquivos grandes).")
+        print("       Instale com: pip install gdown")
+        try:
+            urllib.request.urlretrieve(url, zip_path)
+        except Exception as e:
+            print(f"[ERRO] Falha no download: {e}")
+            print("       Instale gdown: pip install gdown")
+            sys.exit(1)
+
+    if not zip_path.exists() or zip_path.stat().st_size < 1000:
+        print("[ERRO] Download falhou ou arquivo vazio.")
+        print("       Verifique se o arquivo está compartilhado publicamente no Drive.")
+        sys.exit(1)
+
+    print(f"\n[INFO] Descompactando {zip_path.name} "
+          f"({zip_path.stat().st_size / 1e6:.1f} MB)...")
+
+    with zipfile.ZipFile(zip_path, 'r') as z:
+        z.extractall(PROJECT_ROOT / "dataset")
+
+    # Remover ZIP após extração para economizar espaço
+    zip_path.unlink()
+    print("[✓] Dataset extraído com sucesso.\n")
 
 
 def check_dataset():
@@ -91,6 +155,18 @@ def main(args):
     print_gpu_info()
 
     print("\n[INFO] Verificando dataset...")
+    if not dataset_is_ready():
+        drive_zip_id = cfg.get("drive_zip_id", "").strip()
+        if drive_zip_id:
+            download_dataset_from_drive(drive_zip_id)
+        else:
+            print("[AVISO] Dataset não encontrado localmente e 'drive_zip_id' não")
+            print("        configurado em training/config.yaml.")
+            print("        Adicione a linha:")
+            print("          drive_zip_id: \"SEU_ID_DO_DRIVE\"")
+            print("        Ou execute: python dataset_collector/auto_collect.py --from-folder")
+            sys.exit(1)
+
     if not check_dataset():
         print("[ERRO] Dataset inválido. Execute auto_collect.py primeiro.")
         sys.exit(1)

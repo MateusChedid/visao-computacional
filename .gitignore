@@ -6,8 +6,7 @@ venv/
 
 dataset_collector/_work/
 dataset_collector/input/
-runs/
-screenshots/
+
 
 
 # Ignora todos os pesos
@@ -16,7 +15,7 @@ screenshots/
 *.zip
 
 # Exceto o modelo final
-#!best.pt
+!best.pt
 
 # Pesos YOLO baixados da Ultralytics
 yolov8*.pt

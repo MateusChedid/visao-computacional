@@ -8,15 +8,15 @@ Detecção de resultados de dados de RPG (d6, d8, d10, d12, d20) em tempo real v
 
 ## Visão geral da abordagem
 
-O projeto evoluiu por várias iterações até chegar ao fluxo atual, resumido abaixo. Os pontos-chave que resolveram os principais problemas de detecção:
+O projeto evoluiu por várias iterações. Os pontos-chave da arquitetura atual:
 
-- **Uma única ROI**: um **octógono** desenhado sobre o dice tray (`utils/roi_inference.py`), usado tanto na coleta do dataset quanto na inferência em tempo real. Antes existiam duas ROIs separadas (quadrado de coleta + octógono de inferência), o que causava descasamento de escala entre treino e uso real — o dado aparecia muito menor na inferência do que no treino. Agora ambos usam exatamente o mesmo recorte.
-- **Bordas com a cor real do papel**: a área fora do octógono (mas dentro da bbox que o envolve) é preenchida esticando (`cv2.BORDER_REPLICATE`) a cor real do papel/fundo do tray — amostrada automaticamente perto da borda interna do octógono. Isso evita o contraste artificial de bordas pretas/brancas que confundia o detector.
-- **Canvas no tamanho real do tray**: o canvas final do dataset tem o mesmo tamanho da bbox do octógono (sem "zoom"/redução) — o dado aparece no dataset na mesma proporção que aparece na inferência ao vivo.
-- **90 rotações por face** (passo de 4°), geradas a partir de um quadrado central "seguro" extraído do canvas — evita qualquer pixel replicado/distorcido ao girar.
-- **Detecção automática de bbox em cada rotação**, com 3 níveis de confiança decrescentes (0.15 → 0.05 → 0.001) e `imgsz=960`, restrita a uma **região central calibrada por tipo de dado** — isso evita que o YOLOv8 genérico confunda os cantos/bordas do octógono com o dado. Quando falha, usa um fallback no tamanho/posição calibrados (não mais uma caixa genérica).
-- **Sem ajuste de câmera**: a câmera roda na configuração padrão do sistema. O fundo branco do tray garante boa exposição automática.
-- **Imagens RGB originais** — sem conversão para escala de cinza nem augmentation de exposição na coleta (o `config.yaml` já aplica HSV/brilho via augmentation online do YOLOv8 durante o treino).
+- **Uma única ROI (octógono)**: definida uma vez em `utils/roi_inference.py`, usada tanto na coleta quanto na inferência — garante que o dado apareça na mesma escala em treino e uso real.
+- **Bordas com cor real do papel**: a área fora do octógono é preenchida esticando os pixels reais da borda (`cv2.BORDER_REPLICATE`), evitando bordas artificiais que confundem o detector.
+- **5 posições de captura por face**: centro + 4 cantos diagonais (NO, NE, SO, SE) — cobre variações de perspectiva e posicionamento do dado dentro do tray.
+- **90 rotações sintéticas por foto** (passo 4°), geradas a partir de um quadrado central "seguro" (`lado/√2`) — evita pixels replicados/distorcidos nas bordas após rotação.
+- **Pré-processamento em escala de cinza**: todas as imagens do dataset são convertidas para P&B (3 canais BGR iguais) antes do treino, e o frame da webcam passa pela mesma conversão antes de ser enviado ao modelo — foca o aprendizado em forma/contraste/textura dos números, ignorando cor.
+- **Detecção automática de bbox por rotação**: 3 níveis de confiança (0.15 → 0.05 → 0.001), `imgsz=960`, filtrada por região calibrada por tipo de dado **e** por posição (centro/cantos). A região de busca é projetada geometricamente para cada ângulo de rotação via `rotate_rect()`.
+- **Download automático do dataset**: se o dataset não estiver presente localmente, `train.py` baixa automaticamente o ZIP do Google Drive (configurado em `config.yaml`).
 
 ---
 
@@ -25,22 +25,27 @@ O projeto evoluiu por várias iterações até chegar ao fluxo atual, resumido a
 ```
 rpg_dice_cv_v3/
 ├── dataset_collector/
-│   ├── auto_collect.py      ← coleta: 1 foto/face → 90 rotações + bbox automática
+│   ├── auto_collect.py          ← coleta: 5 fotos/face → 90 rotações + bbox automática
+│   ├── augment_offline.py       ← gera variações de brilho/contraste/ruído
+│   ├── check_small_bboxes.py    ← lista imagens com bbox menor que a média
+│   ├── convert_to_grayscale.py  ← converte dataset para escala de cinza
+│   ├── remove_augmented.py      ← remove variações offline do dataset
 │   ├── validate_dataset.py
-│   └── input/                ← fotos originais (d6_1.jpg, d20_17.jpg, d10_0.jpg…)
+│   └── input/                   ← fotos originais (d6_1.jpg, d6_1_a.jpg, …)
 ├── dataset/
-│   ├── dataset.yaml          ← 57 classes
-│   └── images/ labels/       ← train / val / test
+│   ├── dataset.yaml             ← 57 classes
+│   └── images/ labels/          ← train / val / test
 ├── training/
-│   ├── train.py
+│   ├── train.py                 ← treino com download automático do Drive
 │   └── config.yaml
 ├── inference/
-│   ├── detect.py              ← inferência em tempo real
+│   ├── detect.py                ← inferência em tempo real (P&B interno, cores na tela)
 │   └── result_reader.py
 ├── utils/
-│   ├── roi_inference.py       ← octógono (única ROI: coleta + inferência)
-│   └── roi_collect.py         ← legado, não usado no fluxo atual
+│   ├── roi_inference.py         ← octógono (única ROI: coleta + inferência)
+│   └── roi_collect.py           ← legado, não usado
 ├── fix_boxes.py
+├── debug_dataset.py             ← diagnóstico de estrutura do dataset
 └── requirements.txt
 ```
 
@@ -48,15 +53,15 @@ rpg_dice_cv_v3/
 
 ## Dados suportados
 
-| Dado | Faces   | Classes |
-|------|---------|---------|
-| d6   | 1–6     | 6       |
-| d8   | 1–8     | 8       |
-| d10  | **0**–9 | 10      |
-| d12  | 1–12    | 12      |
-| d20  | 1–20    | 20      |
-| —    | unknown | 1       |
-| **Total** |    | **57**  |
+| Dado | Faces | Classes |
+|------|-------|---------|
+| d6 | 1–6 | 6 |
+| d8 | 1–8 | 8 |
+| d10 | **0**–9 | 10 |
+| d12 | 1–12 | 12 |
+| d20 | 1–20 | 20 |
+| — | unknown | 1 |
+| **Total** | | **57** |
 
 ---
 
@@ -65,58 +70,90 @@ rpg_dice_cv_v3/
 ```bash
 pip install -r requirements.txt
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+pip install gdown   # para download automático do dataset do Google Drive
 ```
 
 ---
 
-## Fluxo de uso
+## Fluxo de uso completo
 
-### 1. Capturar as fotos originais
+### 1. Definir o octógono do tray
 
-Tire 1 foto por face (57 no total), com o **tray inteiro visível** e o dado **centralizado**, sempre na mesma posição/distância de câmera. Salve em `dataset_collector/input/` com o padrão `tipo_face.jpg` (ex: `d6_1.jpg`, `d20_17.jpg`, `d10_0.jpg`).
+Na primeira vez, ou quando mudar a posição da câmera:
 
-### 2. Coletar e gerar o dataset
+```bash
+python utils/roi_inference.py
+python utils/roi_inference.py --camera 1   # outra webcam
+```
+
+Clique nos cantos do tray em ordem, `ENTER` duas vezes para confirmar. Salvo em `camera_config.yaml`.
+
+### 2. Capturar as fotos originais
+
+Para cada face de cada dado (57 faces), tire **5 fotos** com o dado em posições diferentes:
+
+```bash
+python dataset_collector/auto_collect.py --camera 1
+```
+
+O programa guia cada captura com um crosshair na tela indicando onde posicionar o dado:
+
+| Foto | Posição | Sufixo do arquivo |
+|------|---------|-------------------|
+| 1 | Centro | `d6_1.jpg` |
+| 2 | Canto NO | `d6_1_a.jpg` |
+| 3 | Canto NE | `d6_1_b.jpg` |
+| 4 | Canto SO | `d6_1_c.jpg` |
+| 5 | Canto SE | `d6_1_d.jpg` |
+
+Controles durante a captura: `ESPAÇO` = fotografar · `Q` = pular posição · `ESC` = cancelar face.
+
+Antes de processar, o programa pede calibração da **região de busca** por tipo e por posição — arraste o retângulo sobre o dado e ajuste o tamanho com scroll, `ENTER` para confirmar.
+
+Para usar fotos já tiradas (pasta `input/` já populada):
 
 ```bash
 python dataset_collector/auto_collect.py --from-folder
 ```
 
-Na primeira execução, será solicitado:
+### 3. Converter para escala de cinza
 
-- **Octógono do tray**: clique nos cantos do tray em ordem (mínimo 3 pontos), `ENTER` duas vezes para confirmar e salvar.
-- **Calibração da região de busca por tipo de dado**: para cada tipo (d6, d8, d10, d12, d20), uma janela mostra uma rotação de exemplo com um quadrado central ajustável (scroll do mouse). Ajuste para cobrir o tamanho real daquele dado e confirme com `ENTER`. Essa região é usada tanto para filtrar detecções automáticas quanto como bbox de fallback.
+```bash
+python dataset_collector/convert_to_grayscale.py
+```
 
-O programa então gera, para cada face: o canvas a partir do octógono → 90 rotações → bbox automática (ou fallback calibrado) → divisão em train/val.
+Converte todas as imagens de `dataset/images/train/` e `val/` para P&B (sobrescreve os `.jpg`). Labels não são alterados.
 
-### 3. Validar
+
+### 4. Validar
 
 ```bash
 python dataset_collector/validate_dataset.py
-python dataset_collector/validate_dataset.py --fix-split
 ```
 
-Se houver bboxes inválidas:
-```bash
-python fix_boxes.py --apply
-```
-
-### 4. Treinar
+### 5. Treinar
 
 ```bash
 python training/train.py
 ```
 
-### 5. Inferência em tempo real
+Se o dataset não estiver presente localmente, o script baixa automaticamente do Google Drive. Configure o ID do arquivo em `training/config.yaml`:
 
-```bash
-python inference/detect.py                        # webcam (índice 0)
-python inference/detect.py --source 1               # outra webcam
-python inference/detect.py --weights caminho/best.pt
-python inference/detect.py --source foto.jpg        # imagem estática
-python inference/detect.py --no-roi                 # ignora octógono, frame inteiro
+```yaml
+drive_zip_id: "SEU_ID_DO_DRIVE"
 ```
 
-O octógono salvo é usado automaticamente — o crop enviado ao modelo é gerado com a mesma transformação (`octagon_to_square`) usada na coleta, garantindo que o dado apareça na mesma proporção vista no treino.
+### 8. Inferência em tempo real
+
+```bash
+python inference/detect.py                         # webcam (índice 0)
+python inference/detect.py --source 1              # outra webcam
+python inference/detect.py --weights caminho/best.pt
+python inference/detect.py --source foto.jpg       # imagem estática
+python inference/detect.py --no-roi                # ignora octógono
+```
+
+O sistema exibe o frame em **cores normais** com as bboxes sobrepostas. No **canto superior direito** aparece uma janela pequena mostrando o canvas em **preto e branco** — exatamente o que o modelo está processando internamente.
 
 ---
 
@@ -126,24 +163,35 @@ O octógono salvo é usado automaticamente — o crop enviado ao modelo é gerad
 |-------|------|
 | `ESPAÇO` | Congelar frame e mostrar resultado |
 | `R` | Voltar ao live feed |
-| `S` | Salvar screenshot (e o canvas exato enviado ao modelo, para debug) |
+| `S` | Salvar screenshot + canvas P&B enviado ao modelo |
 | `Q` | Sair |
 
 ---
 
-## Redefinir o octógono
+## Pré-processamento P&B — como funciona
 
-Para redesenhar a área do tray (ex: mudou a posição da câmera):
+O modelo é treinado com imagens em escala de cinza. Na inferência, o fluxo é:
 
-```bash
-python utils/roi_inference.py
-python utils/roi_inference.py --camera 1   # outra webcam
 ```
+Frame da webcam (cores)
+        ↓
+octagon_to_square()    ← recorta o octógono, cor real do papel nas bordas
+        ↓
+to_grayscale_bgr()     ← converte para P&B (3 canais iguais)
+        ↓
+model.predict()        ← detecção
+        ↓
+Overlay sobre o frame original (cores) + preview P&B no canto
+```
+
+O dado é identificado apenas por forma, contraste e textura dos números — sem depender de cor do plástico.
 
 ---
 
 ## Solução de problemas
 
-- **CUDA out of memory / CUDA error: unknown error**: geralmente indica driver NVIDIA em estado inconsistente após um travamento. Reinicie o PC. Se persistir, force CPU com `$env:CUDA_VISIBLE_DEVICES="-1"` antes de rodar.
-- **Detecção ruim mesmo com o dado bem posicionado**: confirme que o octógono foi desenhado sobre o **tray inteiro** (não uma área menor), e que o dado fica centralizado dentro dele tanto na coleta quanto no uso real.
-- **Muito fallback na coleta**: normal para dados pequenos como o d10. A região de busca calibrada por tipo já produz uma bbox de fallback no tamanho/posição corretos, então um fallback alto não é necessariamente um problema — confira os previews em `dataset_collector/_work/bbox_preview/`.
+- **CUDA out of memory**: reinicie o PC/servidor. Se persistir, force CPU com `$env:CUDA_VISIBLE_DEVICES="-1"` (Windows) ou `CUDA_VISIBLE_DEVICES=-1 python ...` (Linux). Em servidores compartilhados, verifique o uso da GPU com `nvidia-smi` e ajuste `batch` em `config.yaml` conforme a memória disponível.
+- **Dataset não encontrado ao treinar**: verifique se `drive_zip_id` está preenchido em `config.yaml` e se o arquivo no Drive está compartilhado publicamente. Instale `gdown` com `pip install gdown`.
+- **Estrutura do dataset errada após extração** (0 imagens encontradas): rode `python debug_dataset.py` para localizar onde os arquivos foram parar, e `python fix_dataset_structure.py` para corrigir.
+- **Muito fallback na coleta**: normal para dados pequenos (d10) e posições de canto. A região de busca calibrada garante que o fallback fique no lugar certo — confira os previews em `dataset_collector/_work/bbox_preview/`.
+- **Detecção ruim na posição normal**: confirme que o octógono cobre o tray inteiro e que a câmera está na mesma posição usada na coleta.

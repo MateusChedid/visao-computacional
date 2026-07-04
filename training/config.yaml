@@ -1,0 +1,53 @@
+# config_h100.yaml — Otimizado para NVIDIA H100 80GB
+# RPG Dice CV v2 — d6, d8, d10, d12, d20
+
+model:    yolov8l.pt   # modelo MAIOR — H100 aguenta com folga
+epochs:   150
+patience: 25
+batch:    32           # 1660 Super usava 8 — H100 aguenta 64 tranquilo
+imgsz:    640
+workers:  8            # mais workers = carregamento de dados mais rápido
+
+optimizer:    AdamW
+lr0:          0.001
+lrf:          0.01
+momentum:     0.937
+weight_decay: 0.0005
+warmup_epochs: 3.0
+warmup_momentum: 0.8
+
+# Augmentation online
+hsv_h:      0.015
+hsv_s:      0.5
+hsv_v:      0.3
+degrees:    180.0
+translate:  0.1
+scale:      0.3
+shear:      5.0
+flipud:     0.3
+fliplr:     0.5
+mosaic:     0.8
+mixup:      0.1
+copy_paste: 0.1
+
+# Loss weights
+box: 7.5
+cls: 0.5
+dfl: 1.5
+
+# AMP — H100 suporta perfeitamente float16/bfloat16
+amp: true
+
+# Cache dataset inteiro na RAM — H100 tem RAM de sobra no servidor
+cache: ram
+
+save:        true
+save_period: 10
+plots:       true
+verbose:     true
+val:         true
+
+# Inferência
+conf_threshold: 0.45
+iou_threshold:  0.45
+max_det:        20

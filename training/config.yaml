@@ -1,12 +1,12 @@
 # config_h100.yaml — Otimizado para NVIDIA H100 80GB
 # RPG Dice CV v2 — d6, d8, d10, d12, d20
 
-model: yolov8l.pt # modelo MAIOR — H100 aguenta com folga
+model: yolov8l.pt 
 epochs: 150
 patience: 25
-batch: 48 # 1660 Super usava 8 — H100 aguenta 64 tranquilo
+batch: 48 
 imgsz: 640
-workers: 8 # mais workers = carregamento de dados mais rápido
+workers: 8
 
 optimizer: AdamW
 lr0: 0.001
@@ -35,10 +35,9 @@ box: 7.5
 cls: 0.5
 dfl: 1.5
 
-# AMP — H100 suporta perfeitamente float16/bfloat16
+
 amp: true
 
-# Cache dataset inteiro na RAM — H100 tem RAM de sobra no servidor
 cache: ram
 
 save: true
@@ -52,7 +51,5 @@ conf_threshold: 0.45
 iou_threshold: 0.45
 max_det: 20
 
-# Google Drive — ID do ZIP do dataset para download automático
-# Obtenha em: Drive → botão direito no ZIP → Compartilhar → Copiar link
-# O ID está entre /d/ e /view na URL
-drive_zip_id: "1Zb3Wmu4uTaL-_4BA41JewOvsW7oBkZox" # ex: "1A2B3C4D5E6F7G8H9I0J"
+
+drive_zip_id: "1Zb3Wmu4uTaL-_4BA41JewOvsW7oBkZox" 

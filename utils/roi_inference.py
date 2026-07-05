@@ -1,22 +1,3 @@
-#!/usr/bin/env python3
-"""
-roi_inference.py — Seleção de ROI poligonal (octógono) para inferência em tempo real.
-
-Esta ROI é usada SOMENTE pelo detect.py — define a área visual onde o programa
-procura por dados durante o uso em tempo real. Não afeta a coleta do dataset.
-
-Uso:
-    python utils/roi_inference.py
-    python utils/roi_inference.py --camera 1
-
-Controles:
-    Clique esquerdo   → adicionar ponto
-    Clique direito/Z  → remover último ponto
-    ENTER ou C        → confirmar (1ª vez) / salvar (2ª vez)
-    R                 → recomeçar
-    Q                 → sair sem salvar
-"""
-
 import cv2
 import numpy as np
 import yaml
@@ -202,11 +183,6 @@ def crop_to_polygon_bbox(frame, polygon, fill_color=(255, 255, 255)):
 
 
 def sample_paper_color(frame, polygon, border_px=15):
-    """
-    Amostra a cor real do papel/fundo do tray, usando os pixels que ficam
-    DENTRO do octógono mas próximos da sua borda (uma faixa de border_px).
-    Retorna (B, G, R) — mediana dos pixels amostrados.
-    """
     h, w = frame.shape[:2]
     pts = np.array(polygon, dtype=np.int32)
 
@@ -231,13 +207,6 @@ def sample_paper_color(frame, polygon, border_px=15):
 
 
 def crop_to_polygon_bbox_paper(frame, polygon):
-    """
-    Recorta para a bbox do octógono e preenche os pixels FORA do octógono
-    (mas dentro da bbox) com a cor real do papel, amostrada de dentro do
-    próprio octógono. Resultado: a bbox inteira fica na coloração do
-    papel, pronta para copyMakeBorder(BORDER_REPLICATE) sem introduzir
-    cores externas (mesa, sombra, etc).
-    """
     if not polygon:
         return frame, 0, 0
 
@@ -246,11 +215,6 @@ def crop_to_polygon_bbox_paper(frame, polygon):
 
 
 def crop_to_bbox_only(frame, polygon):
-    """
-    Recorta para a bounding box do octógono SEM mascarar nada — mantém
-    todos os pixels reais (inclusive os cantos fora do octógono mas
-    dentro da bbox, que são fundo real do tray).
-    """
     if not polygon:
         return frame, 0, 0
     h, w = frame.shape[:2]

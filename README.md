@@ -1,4 +1,4 @@
-# RPG Dice Vision v4
+# RPG Dice Vision
 
 Detecção de resultados de dados de RPG (d6, d8, d10, d12, d20) em tempo real via webcam, usando YOLOv8.
 

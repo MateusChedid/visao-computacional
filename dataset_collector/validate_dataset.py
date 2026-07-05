@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-"""
-validate_dataset.py — Valida o dataset e exibe estatísticas detalhadas.
-
-Uso:
-    python dataset_collector/validate_dataset.py
-    python dataset_collector/validate_dataset.py --fix-split
-"""
-
 import argparse
 import random
 import shutil

@@ -2,7 +2,7 @@
 # Dados suportados: d6, d8, d10, d12, d20
 # NOTA: d10_0 representa o valor ZERO (não 10)
 
-path: '/home/jovyan/privado/teste/teste11-visao-computacional/dataset'
+path: '/home/jovyan/privado/teste/final-preto-branco/visao-computacional/dataset'
 train: images/train
 val:   images/val
 test:  images/test

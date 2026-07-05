@@ -1,10 +1,4 @@
 #!/usr/bin/env python3
-"""
-result_reader.py — Interpreta detecções YOLOv8 → resultado da jogada.
-
-NOTA: d10_0 representa o valor ZERO (não dez).
-"""
-
 import re
 from dataclasses import dataclass, field
 from typing import List, Dict, Tuple, Optional
@@ -13,7 +7,7 @@ from typing import List, Dict, Tuple, Optional
 @dataclass
 class DieResult:
     die_type:   str
-    face:       int       # valor numérico literal (d10: 0 é zero)
+    face:       int      
     confidence: float
     bbox:       Tuple
 
@@ -117,7 +111,6 @@ def interpret_detections(detections: List[Tuple],
 
 
 if __name__ == "__main__":
-    # Teste rápido incluindo d12 e d10_0=0
     mock = [
         ("d6_4",   0.92, (50,  80, 150, 180)),
         ("d8_7",   0.85, (170, 75, 290, 195)),

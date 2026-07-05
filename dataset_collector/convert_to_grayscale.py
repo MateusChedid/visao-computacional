@@ -1,17 +1,3 @@
-#!/usr/bin/env python3
-"""
-convert_to_grayscale.py — Converte todas as imagens do dataset para P&B.
-
-Converte cada .jpg de dataset/images/train/ e dataset/images/val/ para
-escala de cinza (3 canais BGR iguais), sobrescrevendo os arquivos originais.
-Os labels (.txt) não são alterados — a bbox não muda com a conversão.
-
-Uso:
-    python convert_to_grayscale.py           # converte de verdade
-    python convert_to_grayscale.py --dry-run # só mostra o que faria
-    python convert_to_grayscale.py --split train  # só train
-"""
-
 import cv2
 import argparse
 from pathlib import Path

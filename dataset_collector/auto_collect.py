@@ -1,29 +1,4 @@
 #!/usr/bin/env python3
-"""
-auto_collect.py v3 — Coleta simplificada do dataset.
-
-Regras desta versão:
-  • Câmera mantém configurações padrão do sistema (fundo branco, sem ajuste)
-  • ROI de coleta é QUADRADA (selecionada com utils/roi_collect.py)
-  • 1 foto por face → gera 80 rotações (passo de 4.5°)
-  • SEM augmentation de exposição, SEM conversão para P&B
-  • Imagens vão para o dataset exatamente como capturadas (apenas rotacionadas)
-
-Fluxo:
-  1. Seleciona/carrega a ROI quadrada do tray
-  2. Para cada face: 1 foto vai para um pool, dividido depois em train/val
-  3. Gera 80 rotações da foto (0° a 360°, passo 4.5°)
-  4. YOLOv8 genérico gera a bbox automaticamente para cada rotação
-  5. Distribui em train (queixo a maioria) / val (uma fração)
-
-Uso:
-    python dataset_collector/auto_collect.py
-    python dataset_collector/auto_collect.py --from-folder
-    python dataset_collector/auto_collect.py --skip-roi
-    python dataset_collector/auto_collect.py --clear-roi
-    python dataset_collector/auto_collect.py --dice d20 --face 17
-"""
-
 import cv2
 import math
 import numpy as np
@@ -83,24 +58,7 @@ def load_class_map():
 # ─── Rotator (sem augmentation, sem grayscale) ────────────────────────────────
 
 def generate_rotations(img_path: Path, out_dir: Path, n_rotations: int = N_ROTATIONS):
-    """
-    Gera n_rotations rotações, igualmente espaçadas em 360° (passo 4°),
-    seguindo o padrão de referência:
 
-      1. Extrai o quadrado central "seguro" (lado = menor_lado / sqrt(2))
-         da imagem de entrada — esse quadrado, ao ser rotacionado em
-         torno do seu próprio centro, nunca expõe área fora da imagem
-         original.
-      2. Para cada ângulo, rotaciona ESSE quadrado já reduzido (dentro
-         de suas próprias dimensões), usando BORDER_REPLICATE para
-         preencher os cantos que "saem" — como o quadrado já é o
-         inscrito seguro, BORDER_REPLICATE só preenche cantos vazios
-         com pixels vizinhos reais, sem esticar conteúdo de fora.
-
-    Mantém as cores originais — sem alteração de exposição/cor.
-
-    Retorna lista de paths gerados.
-    """
     img = cv2.imread(str(img_path))
     if img is None:
         print(f"  [ERRO] Não foi possível ler {img_path.name}")
@@ -143,11 +101,7 @@ def generate_rotations(img_path: Path, out_dir: Path, n_rotations: int = N_ROTAT
 
 
 def rotate_rect(rect, M, img_size: int):
-    """
-    Projeta um retângulo (x1,y1,x2,y2) pela matriz de rotação M
-    (2×3, de getRotationMatrix2D) e retorna a nova bounding box
-    axis-aligned, clipada ao tamanho da imagem.
-    """
+
     x1, y1, x2, y2 = rect
     corners = np.array([[x1,y1],[x2,y1],[x2,y2],[x1,y2]], dtype=np.float64)
     ones = np.ones((4, 1))
@@ -161,13 +115,7 @@ def rotate_rect(rect, M, img_size: int):
 
 
 def detect_bbox_px(model, img_path: Path, search_rect=None):
-    """
-    Roda o modelo em até 3 níveis de confiança decrescentes e retorna a
-    primeira bbox que caiba INTEIRAMENTE dentro de search_rect
-    (x1,y1,x2,y2) em pixels. Se search_rect=None, aceita qualquer bbox.
 
-    Retorna (xmin,ymin,xmax,ymax) ou None.
-    """
     img = cv2.imread(str(img_path))
     img_h, img_w = img.shape[:2]
 
@@ -189,10 +137,7 @@ def detect_bbox_px(model, img_path: Path, search_rect=None):
 
 
 class _RectSelector:
-    """
-    Seletor de retângulo livre: arrastar = mover, scroll = redimensionar.
-    Mantém a proporção quadrada para consistência com a detecção.
-    """
+
 
     def __init__(self, img_size: int, init_frac: float = 0.5):
         self.size = img_size
@@ -241,19 +186,7 @@ class _RectSelector:
 
 
 def select_search_region(sample_img_path: Path) -> tuple | None:
-    """
-    Mostra uma rotação de exemplo e permite posicionar e redimensionar
-    um retângulo que define onde o sistema vai procurar o dado.
 
-    Retorna (x1, y1, x2, y2) em pixels da imagem de rotação,
-    ou None se pulado (sem filtro).
-
-    Controles:
-      Arrastar      → mover a região
-      Scroll        → redimensionar
-      ENTER / C     → confirmar
-      Q             → pular (sem filtro para este tipo/posição)
-    """
     img = cv2.imread(str(sample_img_path))
     if img is None:
         return None
@@ -304,10 +237,7 @@ def select_search_region(sample_img_path: Path) -> tuple | None:
 
 def write_label_from_bbox_px(img_path: Path, class_id: int, bbox_px: tuple,
                              label_dir: Path, preview_dir: Path, tag: str = "OK"):
-    """
-    Escreve o .txt YOLO e o preview a partir de uma bbox em PIXELS
-    (xmin,ymin,xmax,ymax) — sem rodar o modelo.
-    """
+
     img = cv2.imread(str(img_path))
     if img is None:
         return
@@ -350,16 +280,7 @@ def copy_to_split(img_path: Path, lbl_path: Path, split: str):
 
 
 def octagon_to_square(img: np.ndarray, polygon: list) -> np.ndarray:
-    """
-    Recorta a imagem para a bounding box do octógono (sem mascarar) e
-    centraliza num CANVAS QUADRADO (lado = maior dimensão da bbox),
-    preenchendo a sobra ESTICANDO as bordas reais da imagem
-    (cv2.BORDER_REPLICATE) — mantém a coloração real do papel/fundo
-    em vez de um branco artificial com contraste abrupto.
 
-    Este é o tamanho FINAL/alvo (lado = bbox do octógono), igual ao que
-    detect.py usa na inferência.
-    """
     crop, x, y = crop_to_polygon_bbox_paper(img, polygon)
     h, w = crop.shape[:2]
     side = max(h, w)
@@ -377,17 +298,7 @@ def octagon_to_square(img: np.ndarray, polygon: list) -> np.ndarray:
 
 
 def octagon_to_square_oversized(img: np.ndarray, polygon: list) -> np.ndarray:
-    """
-    Como octagon_to_square(), mas o canvas final é AMPLIADO por
-    sqrt(2) em relação ao tamanho alvo (bordas esticadas com a cor
-    real do papel via BORDER_REPLICATE).
 
-    Motivo: generate_rotations() extrai o quadrado central "seguro"
-    (lado/sqrt(2)) antes de rotacionar. Se a entrada já for sqrt(2)
-    vezes maior que o alvo, esse recorte resulta EXATAMENTE no tamanho
-    alvo (= tamanho do octógono usado na inferência) — sem reduzir o
-    dado, sem "zoom".
-    """
     crop, x, y = crop_to_polygon_bbox_paper(img, polygon)
     h, w = crop.shape[:2]
     target_side = max(h, w)
@@ -408,18 +319,7 @@ def octagon_to_square_oversized(img: np.ndarray, polygon: list) -> np.ndarray:
 # ─── Pipeline principal ────────────────────────────────────────────────────────
 
 def run_pipeline(images: list, class_map: dict, model, roi):
-    """
-    images: lista de (img_path, class_id)
 
-    Para cada foto, seguindo o padrão de referência:
-      1. Gera o canvas do octógono (612×612, cor do papel nas bordas)
-      2. generate_rotations() extrai o quadrado seguro (612/√2≈432) e
-         gera N_ROTATIONS rotações DENTRO dele (BORDER_REPLICATE)
-      3. Para CADA rotação, roda detecção automática (igual a main.py
-         de referência): conf 0.15 → fallback conf 0.05 → fallback
-         usando a região calibrada (search_frac) se nada detectado
-      4. Divide entre train/val por VAL_FRACTION
-    """
     preview_dir  = WORK_DIR / "bbox_preview"
     fallback_log = []
     counts       = {"train": 0, "val": 0}
@@ -432,19 +332,14 @@ def run_pipeline(images: list, class_map: dict, model, roi):
     print(f"  [i] Detecção automática roda em CADA rotação "
           f"(padrão de referência).\n")
 
-    # ── Calibração da região de busca POR TIPO + POSIÇÃO ─────────────────────
-    # Chave: (dtype, sufixo)  ex: ("d10", ""), ("d10", "_a"), ("d6", "_b") ...
-    # Usa a primeira foto encontrada de cada combinação como exemplo.
-    search_fracs = {}   # (dtype, suffix) → float
+
+    search_fracs = {} 
     seen_keys = set()
 
     for img_path_i, _ in images:
-        stem  = img_path_i.stem          # ex: "d10_2_a"
+        stem  = img_path_i.stem        
         parts = stem.split("_")
-        dtype = parts[0]                 # "d10"
-        # sufixo de posição: tudo depois de dtype_face
-        # stem = dtype_face[_suffix]  → suffix = "_a", "_b", ... ou ""
-        # parts[0]=dtype, parts[1]=face, parts[2:]=sufixo (pode ser vazio)
+        dtype = parts[0]               
         pos_suffix = ("_" + "_".join(parts[2:])) if len(parts) > 2 else ""
         key = (dtype, pos_suffix)
 
@@ -570,10 +465,6 @@ def run_pipeline(images: list, class_map: dict, model, roi):
             print(f"    {l}")
         print(f"  Verifique previews em {preview_dir}")
 
-    # ── Relatório de bboxes por tamanho (menor → maior) ───────────────────────
-    # Lê todos os .txt gerados e calcula a área relativa de cada bbox.
-    # Útil para identificar bboxes anormalmente pequenas (detecção errada)
-    # e removê-las manualmente antes de treinar.
     print(f"\n  {'─'*56}")
     print(f"  RELATÓRIO DE BBOXES — ordenadas por tamanho (menor→maior)")
     print(f"  {'─'*56}")
@@ -623,8 +514,6 @@ def run_pipeline(images: list, class_map: dict, model, roi):
 
 # ─── Webcam capture ────────────────────────────────────────────────────────────
 
-# Posições de captura dentro do octógono, como fração da bbox (fx, fy)
-# Cada posição tem: chave do arquivo, label para display, fração x, fração y, cor BGR do crosshair
 CAPTURE_POSITIONS = [
     ("",   "CENTRO",   0.50, 0.50, (0,   0,   255)),  # vermelho
     ("_a", "NO",       0.27, 0.27, (0,   200, 255)),  # amarelo
@@ -644,7 +533,6 @@ def _roi_target_point(roi, fx: float, fy: float):
 
 
 def _draw_crosshair(display, cx, cy, color, size=22, thickness=2):
-    """Desenha crosshair (cruz + círculo) na posição alvo."""
     cv2.line(display, (cx - size, cy), (cx + size, cy), color, thickness)
     cv2.line(display, (cx, cy - size), (cx, cy + size), color, thickness)
     cv2.circle(display, (cx, cy), 6, color, -1)
@@ -652,17 +540,6 @@ def _draw_crosshair(display, cx, cy, color, size=22, thickness=2):
 
 
 def webcam_capture_face(dice_type: str, face: int, camera_index: int, roi) -> list[Path]:
-    """
-    Captura 5 fotos de uma face:
-      - foto central  →  d6_1.jpg
-      - canto NO      →  d6_1_a.jpg
-      - canto NE      →  d6_1_b.jpg
-      - canto SO      →  d6_1_c.jpg
-      - canto SE      →  d6_1_d.jpg
-
-    Para cada posição, exibe na tela um crosshair indicando onde posicionar o dado.
-    Controles: ESPAÇO = capturar  |  Q = pular esta posição  |  ESC = cancelar face inteira
-    """
     cap = cv2.VideoCapture(camera_index)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH,  1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)

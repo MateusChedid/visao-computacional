@@ -1,27 +1,3 @@
-#!/usr/bin/env python3
-"""
-roi_collect.py — Seleção de ROI QUADRADA e ajustável para a coleta do dataset.
-
-Por que quadrada: o pipeline de rotação recorta um quadrado central da imagem
-para girar sem distorção. Se a ROI não for quadrada, a imagem é esticada antes
-de rotacionar — o que distorce a forma do dado e contamina o dataset.
-
-Esta ROI é usada SOMENTE na coleta (auto_collect.py). A inferência em tempo
-real usa um seletor de octógono separado (utils/roi_inference.py).
-
-Uso:
-    python utils/roi_collect.py
-    python utils/roi_collect.py --camera 1
-
-Controles:
-    Arrastar dentro do quadrado → mover
-    Arrastar nas bordas/cantos  → redimensionar (mantém proporção quadrada)
-    Scroll do mouse             → redimensionar (alternativa ao arrasto)
-    ENTER ou C                  → confirmar e salvar
-    R                            → resetar para quadrado central padrão
-    Q                            → sair sem salvar
-"""
-
 import cv2
 import numpy as np
 import yaml
@@ -35,7 +11,6 @@ HANDLE_SIZE = 12   # raio de detecção dos cantos para redimensionar
 
 
 class SquareROI:
-    """ROI quadrada com arrasto para mover e cantos para redimensionar."""
 
     def __init__(self, frame_w, frame_h):
         # Quadrado inicial: centrado, 50% da menor dimensão
@@ -206,7 +181,6 @@ def render(frame, roi: SquareROI, confirmed=False):
 
 
 def run_selector(camera_index: int = 0):
-    """Retorna (x1,y1,x2,y2) em pixels ou None se cancelado."""
     cap = cv2.VideoCapture(camera_index)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH,  1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
@@ -291,7 +265,6 @@ def load_collect_roi():
 
 
 def crop_to_roi(image: np.ndarray, rect) -> np.ndarray:
-    """Recorta a imagem para o retângulo (x1,y1,x2,y2). Garante quadrado."""
     if rect is None:
         return image
     x1, y1, x2, y2 = rect

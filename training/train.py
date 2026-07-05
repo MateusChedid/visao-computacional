@@ -1,22 +1,3 @@
-#!/usr/bin/env python3
-"""
-train.py — Treina YOLOv8 para detecção de dados de RPG.
-
-Uso:
-    python training/train.py
-    python training/train.py --resume
-    python training/train.py --model yolov8s --epochs 100
-
-Se o dataset não estiver presente localmente, o script tenta baixar
-automaticamente de um ZIP no Google Drive (configurável em training/config.yaml):
-
-    drive_zip_id: "ID_DO_ARQUIVO_NO_DRIVE"   ← ID da URL de compartilhamento
-
-Para obter o ID: no Drive, clique com botão direito no ZIP → Compartilhar →
-Copiar link. O ID é a parte entre /d/ e /view na URL:
-  https://drive.google.com/file/d/ESTE_E_O_ID/view
-"""
-
 import argparse
 import sys
 import yaml
@@ -52,10 +33,6 @@ def dataset_is_ready():
 
 
 def download_dataset_from_drive(drive_zip_id: str):
-    """
-    Baixa o ZIP do dataset do Google Drive usando o ID de compartilhamento
-    e descompacta em PROJECT_ROOT/dataset/.
-    """
     zip_path = PROJECT_ROOT / "rpg_dice_dataset.zip"
 
     # URL de download direto do Google Drive

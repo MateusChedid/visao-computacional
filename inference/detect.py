@@ -1,28 +1,3 @@
-#!/usr/bin/env python3
-"""
-detect.py v4 — Inferência em tempo real.
-
-Abordagem v4:
-  • A ROI é o OCTÓGONO do tray, definido em utils/roi_inference.py
-  • O mesmo octógono é usado na coleta (auto_collect.py) e na inferência
-  • Ambos aplicam octagon_to_square(): recorta para a bbox do octógono,
-    mascara (preto) os pixels fora dele, e centraliza num canvas quadrado
-  • SEM tiling, SEM collect_roi separado — uma única transformação
-    consistente entre treino e inferência
-
-Uso:
-    python inference/detect.py                        # webcam
-    python inference/detect.py --source foto.jpg       # imagem
-    python inference/detect.py --weights caminho/best.pt
-    python inference/detect.py --no-roi                # ignora octógono, frame inteiro
-
-Controles:
-    ESPAÇO → congelar frame e exibir resultado
-    R      → voltar ao live feed
-    S      → salvar screenshot
-    Q      → sair
-"""
-
 import cv2
 import math
 import numpy as np
@@ -61,28 +36,11 @@ FONT = cv2.FONT_HERSHEY_SIMPLEX
 # ─── ROI: octógono → canvas quadrado mascarado ─────────────────────────────────
 
 def to_grayscale_bgr(img: np.ndarray) -> np.ndarray:
-    """
-    Converte para escala de cinza (3 canais BGR iguais) — mesma conversão
-    aplicada ao dataset. O modelo foi treinado em P&B; a exibição continua
-    usando o frame original em cores.
-    """
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
 
 
 def octagon_to_square(img: np.ndarray, polygon: list):
-    """
-    Recorta para a bbox do octógono e centraliza num canvas quadrado
-    (lado = maior dimensão da bbox), preenchendo a sobra com
-    BORDER_REPLICATE (cor real do papel).
-
-    Este tamanho já corresponde ao tamanho final do dataset (gerado por
-    octagon_to_square_oversized + recorte seguro em auto_collect.py) —
-    nenhum recorte/zoom adicional é necessário aqui.
-
-    Retorna (canvas, off_x, off_y, pad_x, pad_y, safe_off) — safe_off
-    sempre 0, mantido por compatibilidade de assinatura.
-    """
     if not polygon:
         h, w = img.shape[:2]
         return img, 0, 0, 0, 0, 0
@@ -105,7 +63,6 @@ def octagon_to_square(img: np.ndarray, polygon: list):
 
 
 def draw_roi_overlay(frame, polygon):
-    """Escurece área fora do octógono e desenha a borda — apenas visual."""
     if not polygon:
         return frame
     h, w = frame.shape[:2]
@@ -168,7 +125,7 @@ def draw_hud_top(frame, frozen=False, roi_active=False):
     overlay = frame.copy()
     cv2.rectangle(overlay, (0, 0), (w, 32), (0, 0, 0), -1)
     cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
-    msg = "RPG Dice CV v4  |  ESPACO=congelar  S=salvar  Q=sair"
+    msg = "RPG Dice CV  |  ESPACO=congelar  S=salvar  Q=sair"
     cv2.putText(frame, msg, (8, 21), FONT, 0.44, (180,180,180), 1)
     if frozen:
         cv2.putText(frame, "[ CONGELADO ]", (w-175, 21), FONT, 0.55, (0,200,255), 2)
@@ -179,7 +136,7 @@ def draw_hud_top(frame, frozen=False, roi_active=False):
 
 def yolo_to_detections(yolo_results, class_names, off_x=0, off_y=0,
                        pad_x=0, pad_y=0, safe_off=0):
-    """Converte detecções do canvas final de volta para coordenadas do frame original."""
+   
     detections = []
     for result in yolo_results:
         if result.boxes is None:

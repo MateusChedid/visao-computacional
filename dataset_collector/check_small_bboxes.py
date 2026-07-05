@@ -1,19 +1,4 @@
 #!/usr/bin/env python3
-"""
-check_small_bboxes.py — Lista as imagens com menores bounding boxes.
-
-Lê todos os .txt de labels em dataset/labels/train/ (e val/),
-calcula a área de cada bbox, e exibe as N menores — para inspeção
-manual antes do treino.
-
-Uso:
-    python dataset_collector/check_small_bboxes.py
-    python dataset_collector/check_small_bboxes.py --n 50
-    python dataset_collector/check_small_bboxes.py --split val
-    python dataset_collector/check_small_bboxes.py --threshold 0.5
-        (lista todas com área < 0.5% da imagem)
-"""
-
 import argparse
 from pathlib import Path
 

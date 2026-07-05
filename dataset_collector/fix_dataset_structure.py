@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-"""
-Corrige a estrutura do dataset quando os arquivos foram extraídos
-com caminhos Windows (barras invertidas) interpretados como nomes literais.
-
-Rode na raiz do projeto: python fix_dataset_structure.py
-"""
 from pathlib import Path
 import shutil
 

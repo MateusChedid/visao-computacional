@@ -8,7 +8,6 @@ dataset_collector/_work/
 dataset_collector/input/
 
 
-
 # Ignora todos os pesos
 *.pt
 

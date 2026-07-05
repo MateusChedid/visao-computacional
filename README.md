@@ -57,7 +57,7 @@ O arquivo de pesos da rede neural (`best.pt`) não está incluído no repositór
 por ser grande (~87MB). Faça o download pelo link abaixo e coloque na pasta raiz
 do projeto antes de rodar a inferência:
 
-**Download:** https://drive.google.com/file/d/SEU_ID_AQUI/view
+**Download:** https://drive.google.com/file/d/1dXmP8hL1PpqbzRj5RkV4thX5ydOh38b_/view?usp=sharing
 
 | Arquivo | Descrição | Época |
 |---------|-----------|-------|
@@ -215,3 +215,33 @@ O dado é identificado apenas por forma, contraste e textura dos números — se
 - **Estrutura do dataset errada após extração** (0 imagens encontradas): rode `python debug_dataset.py` para localizar onde os arquivos foram parar, e `python fix_dataset_structure.py` para corrigir.
 - **Muito fallback na coleta**: normal para dados pequenos (d10) e posições de canto. A região de busca calibrada garante que o fallback fique no lugar certo — confira os previews em `dataset_collector/_work/bbox_preview/`.
 - **Detecção ruim na posição normal**: confirme que o octógono cobre o tray inteiro e que a câmera está na mesma posição usada na coleta.
+
+---
+
+## Declaração de Uso de IA Generativa
+
+O arquivo `training/train.py` foi inicialmente gerado com auxílio de IA generativa
+(Claude, da Anthropic), pois nenhum membro do grupo possuía experiência prévia
+suficiente para estruturar de forma autônoma o pipeline de configuração e execução
+do treinamento YOLOv8 via código Python.
+
+**O que foi solicitado à IA:** organizar os parâmetros definidos em
+`training/config.yaml` em um script Python que carregasse essas configurações,
+verificasse a integridade do dataset antes de iniciar e executasse o treinamento
+via a API da biblioteca Ultralytics.
+
+**O que o script faz, em detalhes:**
+
+- Lê `config.yaml` com `yaml.safe_load()` e extrai os parâmetros de treinamento
+- Verifica se as pastas `dataset/images/train/` e `dataset/images/val/` existem e
+  contêm imagens — se não, tenta baixar automaticamente um ZIP do Google Drive
+  usando `gdown`, cujo ID é configurado via `drive_zip_id` no `config.yaml`
+- Instancia o modelo YOLOv8 via `YOLO(modelo_base)` da biblioteca Ultralytics
+- Chama `model.train()` passando os parâmetros lidos do YAML — épocas, batch,
+  imgsz, otimizador, learning rate e augmentations (HSV, mosaico, rotação, flip)
+- Salva os resultados em `runs/train/` com nome baseado na data/hora de início
+
+Todos os membros do grupo revisaram e validaram o script gerado, entendendo o
+papel de cada parâmetro — em especial as configurações de augmentation online
+e sua relação com o dataset gerado offline com rotações e conversão para escala
+de cinza.

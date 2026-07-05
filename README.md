@@ -51,6 +51,26 @@ rpg_dice_cv_v3/
 
 ---
 
+## Modelo Treinado (Checkpoints)
+
+O arquivo de pesos da rede neural (`best.pt`) não está incluído no repositório
+por ser grande (~87MB). Faça o download pelo link abaixo e coloque na pasta raiz
+do projeto antes de rodar a inferência:
+
+**Download:** https://drive.google.com/file/d/SEU_ID_AQUI/view
+
+| Arquivo | Descrição | Época |
+|---------|-----------|-------|
+| `best.pt` | Melhor modelo (usado na inferência) | 25/67 |
+
+### Como usar após o download
+
+Coloque o arquivo na raiz do projeto e execute:
+
+python inference/detect.py --weights best.pt
+
+---
+
 ## Dados suportados
 
 | Dado | Faces | Classes |

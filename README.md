@@ -67,7 +67,22 @@ do projeto antes de rodar a inferência:
 
 Coloque o arquivo na raiz do projeto e execute:
 
+```bash
 python inference/detect.py --weights best.pt
+```
+
+---
+
+## Dataset
+
+O dataset de imagens de treino e validação (~25.000 imagens em escala de cinza)
+não está incluído no repositório. Faça o download pelo link abaixo:
+
+**Download:** https://drive.google.com/file/d/1Zb3Wmu4uTaL-_4BA41JewOvsW7oBkZox/view?usp=sharing
+
+Após baixar o ZIP, extraia na pasta `dataset/` do projeto. O `training/train.py`
+também pode baixar o dataset automaticamente se `drive_zip_id` estiver configurado
+em `training/config.yaml`.
 
 ---
 

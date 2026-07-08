@@ -43,8 +43,6 @@ rpg_dice_cv_v3/
 │   └── result_reader.py
 ├── utils/
 │   └──roi_inference.py         ← octógono (única ROI: coleta + inferência)
-├── fix_boxes.py
-├── debug_dataset.py             ← diagnóstico de estrutura do dataset
 └── requirements.txt
 ```
 

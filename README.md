@@ -68,9 +68,9 @@ do projeto antes de rodar a inferência:
 Coloque o arquivo na raiz do projeto e execute:
 
 ```bash
+python utils/roi_inference.py
 python inference/detect.py --weights best.pt
 ```
-
 ---
 
 ## Dataset
